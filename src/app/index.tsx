@@ -1,94 +1,208 @@
-import { Link } from "expo-router";
-import React from "react";
-import { Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { StatusBar } from "expo-status-bar";
+import {
+  Text,
+  View,
+  Vibration,
+  Easing,
+  TextInput,
+  Dimensions,
+  Animated,
+  TouchableOpacity,
+  StyleSheet,
+} from "react-native";
+
+const { width, height } = Dimensions.get("window");
+
+const colors = {
+  background: "#2A333DFF",
+  primary: "#F76A6A",
+  text: "#FFFFFF",
+};
+
+const timers = [...Array(13).keys()].map((i) => (i === 0 ? 1 : i * 5));
+const ITEM_SIZE = width * 0.38;
+const ITEM_SPACING = (width - ITEM_SIZE) / 2;
 
 export default function Page() {
-  return (
-    <View className="flex flex-1">
-      <Header />
-      <Content />
-      <Footer />
-    </View>
-  );
-}
+  const inputRef = useRef<TextInput>(null);
+  const scrollX = useRef(new Animated.Value(0)).current;
+  const [duration, setDuration] = useState(timers[0]);
+  const timerAnimation = useRef(new Animated.Value(height)).current;
+  const textInputAnimation = useRef(new Animated.Value(timers[0])).current;
+  const buttonAnimation = useRef(new Animated.Value(0)).current;
+  
+  useEffect(() => {
+    const listener = textInputAnimation.addListener(({ value }) => {
+      if (inputRef.current) {
+        inputRef.current.setNativeProps({
+          text: Math.ceil(value).toString(),
+        });
+      }
+    });
 
-function Content() {
-  return (
-    <View className="flex-1">
-      <View className="py-12 md:py-24 lg:py-32 xl:py-48">
-        <View className="px-4 md:px-6">
-          <View className="flex flex-col items-center gap-4 text-center">
-            <Text
-              role="heading"
-              className="text-3xl text-center native:text-5xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl"
-            >
-              Welcome to Project ACME
-            </Text>
-            <Text className="mx-auto max-w-[700px] text-lg text-center text-gray-500 md:text-xl dark:text-gray-400">
-              Discover and collaborate on acme. Explore our services now.
-            </Text>
+    return () => {
+      textInputAnimation.removeListener(listener);
+      textInputAnimation.removeAllListeners();
+    }
+  });
 
-            <View className="gap-4">
-              <Link
-                suppressHighlighting
-                className="flex h-9 items-center justify-center overflow-hidden rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-gray-50 web:shadow ios:shadow transition-colors hover:bg-gray-900/90 active:bg-gray-400/90 web:focus-visible:outline-none web:focus-visible:ring-1 focus-visible:ring-gray-950 disabled:pointer-events-none disabled:opacity-50 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-gray-50/90 dark:focus-visible:ring-gray-300"
-                href="/"
+  const animation = useCallback(() => {
+    textInputAnimation.setValue(duration);
+    Animated.sequence([
+      Animated.timing(buttonAnimation, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(timerAnimation, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.parallel([
+        Animated.timing(textInputAnimation, {
+          toValue: 0,
+          duration: duration * 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(timerAnimation, {
+          toValue: height,
+          duration: duration * 1000,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.delay(400),
+    ]).start(() => {
+      Vibration.cancel();
+      Vibration.vibrate();
+      textInputAnimation.setValue(duration);
+      Animated.timing(buttonAnimation, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    });
+  }, [duration]);
+
+  const opacity = buttonAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0],
+  });
+
+  const translateY = buttonAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 200],
+  });
+
+  const textOpacity = buttonAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  });
+
+  return (
+    <View className="flex-1 bg-background">
+      <StatusBar hidden />
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFillObject,
+          {
+            width,
+            height: height,
+            backgroundColor: colors.primary,
+            transform: [
+              {
+                translateY: timerAnimation,
+              },
+            ],
+          },
+        ]}
+      />
+      <Animated.View
+        className="justify-end items-center pb-24"
+        style={[
+          StyleSheet.absoluteFillObject,
+          { opacity, transform: [{ translateY }] },
+        ]}
+      >
+        <TouchableOpacity onPress={animation}>
+          <View className="size-20 rounded-full bg-primary" />
+        </TouchableOpacity>
+      </Animated.View>
+      <View
+        className="absolute left-0 right-0 flex-1"
+        style={{ top: height / 3 }}
+      >
+        <Animated.View
+          style={{ width: ITEM_SIZE, opacity: textOpacity }}
+          className="absolute justify-center items-center self-center"
+        >
+          <TextInput
+            ref={inputRef}
+            className="text-text font-semibold"
+            style={{ fontSize: ITEM_SIZE * 0.8, fontFamily: "Menlo" }}
+            defaultValue={duration.toString()}
+          />
+        </Animated.View>
+        <Animated.FlatList
+          data={timers}
+          keyExtractor={(item) => item.toString()}
+          horizontal
+          bounces={false}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+            {
+              useNativeDriver: true,
+            }
+          )}
+          onMomentumScrollEnd={(event) => {
+            const index = Math.round(
+              event.nativeEvent.contentOffset.x / ITEM_SIZE
+            );
+            setDuration(timers[index]);
+          }}
+          showsHorizontalScrollIndicator={false}
+          snapToInterval={ITEM_SIZE}
+          decelerationRate="fast"
+          contentContainerStyle={{
+            paddingHorizontal: ITEM_SPACING,
+          }}
+          className="flex-grow-0"
+          style={{ opacity }}
+          renderItem={({ item, index }) => {
+            const inputRange = [
+              (index - 1) * ITEM_SIZE,
+              index * ITEM_SIZE,
+              (index + 1) * ITEM_SIZE,
+            ];
+
+            const opacity = scrollX.interpolate({
+              inputRange,
+              outputRange: [0.4, 1, 0.4],
+            });
+
+            const scale = scrollX.interpolate({
+              inputRange,
+              outputRange: [0.7, 1, 0.7],
+            });
+            return (
+              <View
+                style={{ width: ITEM_SIZE }}
+                className="justify-center items-center"
               >
-                Explore
-              </Link>
-            </View>
-          </View>
-        </View>
-      </View>
-    </View>
-  );
-}
-
-function Header() {
-  const { top } = useSafeAreaInsets();
-  return (
-    <View style={{ paddingTop: top }}>
-      <View className="px-4 lg:px-6 h-14 flex items-center flex-row justify-between ">
-        <Link className="font-bold flex-1 items-center justify-center" href="/">
-          ACME
-        </Link>
-        <View className="flex flex-row gap-4 sm:gap-6">
-          <Link
-            className="text-md font-medium hover:underline web:underline-offset-4"
-            href="/"
-          >
-            About
-          </Link>
-          <Link
-            className="text-md font-medium hover:underline web:underline-offset-4"
-            href="/"
-          >
-            Product
-          </Link>
-          <Link
-            className="text-md font-medium hover:underline web:underline-offset-4"
-            href="/"
-          >
-            Pricing
-          </Link>
-        </View>
-      </View>
-    </View>
-  );
-}
-
-function Footer() {
-  const { bottom } = useSafeAreaInsets();
-  return (
-    <View
-      className="flex shrink-0 bg-gray-100 native:hidden"
-      style={{ paddingBottom: bottom }}
-    >
-      <View className="py-6 flex-1 items-start px-4 md:px-6 ">
-        <Text className={"text-center text-gray-700"}>
-          © {new Date().getFullYear()} Me
-        </Text>
+                <Animated.Text
+                  className="text-text font-semibold"
+                  style={[
+                    { fontSize: ITEM_SIZE * 0.8, fontFamily: "Menlo" },
+                    { opacity, transform: [{ scale }] },
+                  ]}
+                >
+                  {item}
+                </Animated.Text>
+              </View>
+            );
+          }}
+        />
       </View>
     </View>
   );
