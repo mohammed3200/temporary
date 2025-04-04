@@ -1,16 +1,26 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { StatusBar } from "expo-status-bar";
+
 import {
-  Text,
+  StatusBar,
   View,
-  Vibration,
-  Easing,
   TextInput,
-  Dimensions,
-  Animated,
   TouchableOpacity,
+  Dimensions,
+  Vibration,
   StyleSheet,
 } from "react-native";
+
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  useAnimatedScrollHandler,
+  withTiming,
+  withSequence,
+  runOnJS,
+  Easing,
+} from "react-native-reanimated";
+
+import { TimerItem } from "@/components/timer-item";
 
 const { width, height } = Dimensions.get("window");
 
@@ -25,183 +35,165 @@ const ITEM_SIZE = width * 0.38;
 const ITEM_SPACING = (width - ITEM_SIZE) / 2;
 
 export default function Page() {
-  const inputRef = useRef<TextInput>(null);
-  const scrollX = useRef(new Animated.Value(0)).current;
   const [duration, setDuration] = useState(timers[0]);
-  const timerAnimation = useRef(new Animated.Value(height)).current;
-  const textInputAnimation = useRef(new Animated.Value(timers[0])).current;
-  const buttonAnimation = useRef(new Animated.Value(0)).current;
+  const [displayValue, setDisplayValue] = useState(duration.toString());
   
+  // Reanimated values
+  const scrollX = useSharedValue(0);
+  const timerProgress = useSharedValue(height);
+  const buttonOpacity = useSharedValue(1);
+  const buttonTranslateY = useSharedValue(0);
+  const textOpacity = useSharedValue(0);
+  const animationRef = useRef<NodeJS.Timeout>();
+
   useEffect(() => {
-    const listener = textInputAnimation.addListener(({ value }) => {
-      if (inputRef.current) {
-        inputRef.current.setNativeProps({
-          text: Math.ceil(value).toString(),
-        });
-      }
-    });
-
-    return () => {
-      textInputAnimation.removeListener(listener);
-      textInputAnimation.removeAllListeners();
-    }
-  });
-
-  const animation = useCallback(() => {
-    textInputAnimation.setValue(duration);
-    Animated.sequence([
-      Animated.timing(buttonAnimation, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(timerAnimation, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.parallel([
-        Animated.timing(textInputAnimation, {
-          toValue: 0,
-          duration: duration * 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(timerAnimation, {
-          toValue: height,
-          duration: duration * 1000,
-          useNativeDriver: true,
-        }),
-      ]),
-      Animated.delay(400),
-    ]).start(() => {
-      Vibration.cancel();
-      Vibration.vibrate();
-      textInputAnimation.setValue(duration);
-      Animated.timing(buttonAnimation, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    });
+    setDisplayValue(duration.toString());
   }, [duration]);
 
-  const opacity = buttonAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 0],
-  });
+  useEffect(() => {
+    return () => {
+      if (animationRef.current) clearInterval(animationRef.current);
+    };
+  }, []);
 
-  const translateY = buttonAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 200],
-  });
+  const animation = useCallback(() => {
 
-  const textOpacity = buttonAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 1],
+    if (animationRef.current) clearInterval(animationRef.current);
+
+    buttonOpacity.value = withTiming(0, { duration: 300 });
+    buttonTranslateY.value = withTiming(200, { duration: 300 });
+    textOpacity.value = withTiming(1);
+
+    const startTime = Date.now();
+    const endTime = startTime + duration * 1000;
+
+    timerProgress.value = withSequence(
+      withTiming(0, { duration: 300 }),
+      withTiming(
+        height,
+        {
+          duration: duration * 1000,
+          easing: Easing.linear,
+        },
+        (finished) => {
+          if (finished) {
+            runOnJS(Vibration.vibrate)();
+            buttonOpacity.value = withTiming(1, { duration: 300 });
+            buttonTranslateY.value = withTiming(0, { duration: 300 });
+            textOpacity.value = withTiming(0);
+            runOnJS(setDisplayValue)(duration.toString());
+          }
+        }
+      )
+    );
+
+    // More accurate countdown using elapsed time
+    // More precise countdown
+    animationRef.current = setInterval(() => {
+      const now = Date.now();
+      const remaining = Math.max(0, Math.ceil((endTime - now) / 1000));
+      
+      // Only update if value changed
+      if (remaining !== parseInt(displayValue)) {
+        runOnJS(setDisplayValue)(remaining.toString());
+      }
+      
+      if (now >= endTime) {
+        clearInterval(animationRef.current);
+      }
+    }, 50); // More frequent checks for better accuracy
+
+    return () => {
+      if (animationRef.current) clearInterval(animationRef.current);
+    };
+  }, [duration]);
+
+  // Animated styles
+  const timerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: timerProgress.value }],
+  }));
+
+  const buttonStyle = useAnimatedStyle(() => ({
+    opacity: buttonOpacity.value,
+    transform: [{ translateY: buttonTranslateY.value }],
+  }));
+
+  const textInputStyle = useAnimatedStyle(() => ({
+    opacity: textOpacity.value,
+  }));
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollX.value = event.contentOffset.x;
+    },
+    onMomentumEnd: (event) => {
+      const index = Math.round(event.contentOffset.x / ITEM_SIZE);
+      runOnJS(setDuration)(timers[index]);
+    },
   });
 
   return (
     <View className="flex-1 bg-background">
       <StatusBar hidden />
+
       <Animated.View
         style={[
           StyleSheet.absoluteFillObject,
-          {
-            width,
-            height: height,
-            backgroundColor: colors.primary,
-            transform: [
-              {
-                translateY: timerAnimation,
-              },
-            ],
-          },
+          { backgroundColor: colors.primary },
+          timerStyle,
         ]}
       />
+
       <Animated.View
         className="justify-end items-center pb-24"
-        style={[
-          StyleSheet.absoluteFillObject,
-          { opacity, transform: [{ translateY }] },
-        ]}
+        style={[StyleSheet.absoluteFillObject, buttonStyle]}
       >
         <TouchableOpacity onPress={animation}>
           <View className="size-20 rounded-full bg-primary" />
         </TouchableOpacity>
       </Animated.View>
-      <View
-        className="absolute left-0 right-0 flex-1"
-        style={{ top: height / 3 }}
-      >
+
+      <View className="absolute left-0 right-0 flex-1" style={{ top: height / 3 }}>
         <Animated.View
-          style={{ width: ITEM_SIZE, opacity: textOpacity }}
-          className="absolute justify-center items-center self-center"
+          style={[
+            {
+              width: ITEM_SIZE * 1.2,
+              position: "absolute",
+              justifyContent: "center",
+              alignItems: "center",
+              alignSelf: "center",
+            },
+            textInputStyle,
+          ]}
         >
           <TextInput
-            ref={inputRef}
             className="text-text font-semibold"
-            style={{ fontSize: ITEM_SIZE * 0.8, fontFamily: "Menlo" }}
-            defaultValue={duration.toString()}
+            style={{ fontSize: ITEM_SIZE * .8, fontFamily: 'Menlo' }}
+            value={displayValue}  // Changed from defaultValue to value
+            editable={false}       
           />
         </Animated.View>
+
         <Animated.FlatList
           data={timers}
           keyExtractor={(item) => item.toString()}
           horizontal
           bounces={false}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-            {
-              useNativeDriver: true,
-            }
-          )}
-          onMomentumScrollEnd={(event) => {
-            const index = Math.round(
-              event.nativeEvent.contentOffset.x / ITEM_SIZE
-            );
-            setDuration(timers[index]);
-          }}
+          onScroll={scrollHandler}
           showsHorizontalScrollIndicator={false}
           snapToInterval={ITEM_SIZE}
           decelerationRate="fast"
-          contentContainerStyle={{
-            paddingHorizontal: ITEM_SPACING,
-          }}
+          contentContainerStyle={{ paddingHorizontal: ITEM_SPACING }}
           className="flex-grow-0"
-          style={{ opacity }}
-          renderItem={({ item, index }) => {
-            const inputRange = [
-              (index - 1) * ITEM_SIZE,
-              index * ITEM_SIZE,
-              (index + 1) * ITEM_SIZE,
-            ];
-
-            const opacity = scrollX.interpolate({
-              inputRange,
-              outputRange: [0.4, 1, 0.4],
-            });
-
-            const scale = scrollX.interpolate({
-              inputRange,
-              outputRange: [0.7, 1, 0.7],
-            });
-            return (
-              <View
-                style={{ width: ITEM_SIZE }}
-                className="justify-center items-center"
-              >
-                <Animated.Text
-                  className="text-text font-semibold"
-                  style={[
-                    { fontSize: ITEM_SIZE * 0.8, fontFamily: "Menlo" },
-                    { opacity, transform: [{ scale }] },
-                  ]}
-                >
-                  {item}
-                </Animated.Text>
-              </View>
-            );
-          }}
+          style={buttonStyle}
+          renderItem={({ item, index }) => (
+            <TimerItem
+              item={item}
+              index={index}
+              scrollX={scrollX}
+              ITEM_SIZE={ITEM_SIZE}
+            />
+          )}
         />
       </View>
     </View>
