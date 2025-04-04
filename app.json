@@ -10,6 +10,18 @@
       "expo-router"
     ],
     "name": "Temporary",
-    "slug": "Temporary"
+    "slug": "Temporary",
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "855ca4ca-870c-44fc-a4d6-ecf5713dd20c"
+      }
+    },
+    "owner": "glitch404",
+    "android": {
+      "package": "com.glitch404.Temporary"
+    }
   }
 }
