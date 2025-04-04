@@ -3,6 +3,11 @@
     "scheme": "acme",
     "userInterfaceStyle": "automatic",
     "orientation": "default",
+    "splash": {
+      "image": "./assets/image/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "web": {
       "output": "static"
     },
@@ -21,6 +26,10 @@
     },
     "owner": "glitch404",
     "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/image/icon.png",
+        "backgroundColor": "#ffffff"
+      },
       "package": "com.glitch404.Temporary"
     }
   }
