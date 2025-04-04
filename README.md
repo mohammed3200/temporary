@@ -1,8 +1,8 @@
 # Focus Timer App
 
-![App Screenshot](./assets/screenshots/Screenshot.gif)
+![App Screenshot](.././assets/screenshots/Screenshot.gif)
 
-![App Screenshot](./assets/screenshots/Screenshot_2.gif)
+![App Screenshot](.././assets/screenshots/Screenshot_2.gif)
 
 A beautiful, animated countdown timer application built with React Native and Reanimated. Perfect for focus sessions, workouts, or any timed activity.
 
@@ -19,7 +19,7 @@ A beautiful, animated countdown timer application built with React Native and Re
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/focus-timer.git
+git clone https://github.com/mohammed3200/temporary.git
 ```
 
 2. Install dependencies:
@@ -64,17 +64,6 @@ ffmpeg -i screen-recording.mp4 -vf "fps=15,scale=640:-1:flags=lanczos" -c:v gif 
 # - https://cloudconvert.com/mp4-to-gif
 ```
 
-3. **Optimize the GIF**:
-```bash
-# Using gifsicle
-gifsicle -O3 --lossy=80 -o Screenshot.gif Screenshot_2.gif
-```
-
-4. **Add to your README**:
-```markdown
-![App Demo](./assets/screenshots/Screenshot.gif)
-```
-
 ## Project Structure
 
 ```
@@ -96,4 +85,4 @@ Contributions are welcome! Please open an issue or submit a pull request.
 ## License
 
 MIT © Glitch404
-```
+
