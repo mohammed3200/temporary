@@ -21,6 +21,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { TimerItem } from "@/components/timer-item";
+import { formatTime } from "@/lib/util";
 
 const { width, height } = Dimensions.get("window");
 
@@ -35,8 +36,8 @@ const ITEM_SIZE = width * 0.38;
 const ITEM_SPACING = (width - ITEM_SIZE) / 2;
 
 export default function Page() {
-  const [duration, setDuration] = useState(timers[0]);
-  const [displayValue, setDisplayValue] = useState(duration.toString());
+  const [duration, setDuration] = useState(timers[0] * 60);
+  const [displayValue, setDisplayValue] = useState(() => formatTime(timers[0] * 60));
   
   // Reanimated values
   const scrollX = useSharedValue(0);
@@ -47,7 +48,7 @@ export default function Page() {
   const animationRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
-    setDisplayValue(duration.toString());
+    setDisplayValue(formatTime(duration));
   }, [duration]);
 
   useEffect(() => {
@@ -67,12 +68,13 @@ export default function Page() {
     const startTime = Date.now();
     const endTime = startTime + duration * 1000;
 
+    // In the animation function, no need to multiply by 60000 anymore
     timerProgress.value = withSequence(
       withTiming(0, { duration: 300 }),
       withTiming(
         height,
         {
-          duration: duration * 1000,
+          duration: duration * 1000, // Changed from duration * 60000
           easing: Easing.linear,
         },
         (finished) => {
@@ -95,7 +97,7 @@ export default function Page() {
       
       // Only update if value changed
       if (remaining !== parseInt(displayValue)) {
-        runOnJS(setDisplayValue)(remaining.toString());
+        runOnJS(setDisplayValue)(formatTime(remaining));
       }
       
       if (now >= endTime) {
@@ -128,7 +130,7 @@ export default function Page() {
     },
     onMomentumEnd: (event) => {
       const index = Math.round(event.contentOffset.x / ITEM_SIZE);
-      runOnJS(setDuration)(timers[index]);
+      runOnJS(setDuration)(timers[index] * 60);
     },
   });
 
@@ -157,7 +159,7 @@ export default function Page() {
         <Animated.View
           style={[
             {
-              width: ITEM_SIZE * 1.2,
+              width: ITEM_SIZE * 1.5,
               position: "absolute",
               justifyContent: "center",
               alignItems: "center",
@@ -168,7 +170,7 @@ export default function Page() {
         >
           <TextInput
             className="text-text font-semibold"
-            style={{ fontSize: ITEM_SIZE * .8, fontFamily: 'Menlo' }}
+            style={{ fontSize: ITEM_SIZE * .6, fontFamily: 'Menlo' }}
             value={displayValue}  // Changed from defaultValue to value
             editable={false}       
           />

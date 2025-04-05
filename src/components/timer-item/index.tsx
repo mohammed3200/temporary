@@ -12,7 +12,13 @@ interface TimerItemProps {
   scrollX: Animated.SharedValue<number>;
 }
 
-export const TimerItem: React.FC<TimerItemProps> = ({ item, ITEM_SIZE, index, scrollX }) => {
+export const TimerItem: React.FC<TimerItemProps> = ({
+  item,
+  ITEM_SIZE,
+  index,
+  scrollX,
+}) => {
+
   const inputRange = [
     (index - 1) * ITEM_SIZE,
     index * ITEM_SIZE,
@@ -30,9 +36,9 @@ export const TimerItem: React.FC<TimerItemProps> = ({ item, ITEM_SIZE, index, sc
     <View style={{ width: ITEM_SIZE }} className="justify-center items-center">
       <Animated.Text
         className="text-text font-semibold"
-        style={[{ fontSize: ITEM_SIZE * 0.8, fontFamily: 'Menlo' }, itemStyle]}
+        style={[{ fontSize: ITEM_SIZE * 0.8, fontFamily: "Menlo" }, itemStyle]}
       >
-        {item.toString()}
+        {item}
       </Animated.Text>
     </View>
   );
