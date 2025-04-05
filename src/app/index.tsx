@@ -31,7 +31,7 @@ const colors = {
   text: "#FFFFFF",
 };
 
-const timers = [...Array(13).keys()].map((i) => (i === 0 ? 1 : i * 5));
+const timers = [...Array(16).keys()].map((i) => (i === 0 ? 1 : i < 10 ? i + 1 : (i - 8) * 5));
 const ITEM_SIZE = width * 0.38;
 const ITEM_SPACING = (width - ITEM_SIZE) / 2;
 
@@ -178,7 +178,7 @@ export default function Page() {
 
         <Animated.FlatList
           data={timers}
-          keyExtractor={(item) => item.toString()}
+          keyExtractor={(item, index) => `${item}-${index}`}
           horizontal
           bounces={false}
           onScroll={scrollHandler}
