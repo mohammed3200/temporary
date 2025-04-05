@@ -6,7 +6,7 @@
     "splash": {
       "image": "./assets/image/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#f8f4eb"
     },
     "web": {
       "output": "static"
