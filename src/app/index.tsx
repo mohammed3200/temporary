@@ -52,6 +52,7 @@ export default function Page() {
 
   // Refs
   const animationRef = useRef<NodeJS.Timeout>();
+  const singleTapRef = useRef(); // <-- New ref for single tap
   const doubleTapRef = useRef();
   const endTimeRef = useRef(0);
   const remainingTimeRef = useRef(duration);
@@ -65,7 +66,6 @@ export default function Page() {
 
   useEffect(() => {
     setDisplayValue(formatTime(duration));
-    remainingTimeRef.current = duration;
   }, [duration]);
 
   useEffect(() => {
@@ -95,20 +95,23 @@ export default function Page() {
     setIsPaused(false);
   };
 
-
   const toggleTimer = useCallback(() => {
     if (isPaused) {
       // Resume timer from paused state
-      const remainingTime = remainingTimeRef.current * 1000; // Convert to milliseconds
       const startTime = Date.now();
-      endTimeRef.current = startTime + remainingTime;
-      console.log("End time:", endTimeRef.current);
+      const remainingTimeMs = remainingTimeRef.current; // Already in milliseconds
+      endTimeRef.current = startTime + remainingTimeMs;
 
-      // Continue animation from current position
+      // Calculate animation duration based on remaining distance
+      const currentProgress = timerProgress.value;
+      const progressRatio = currentProgress / height;
+      const durationMs = remainingTimeRef.current * (1 - progressRatio);
+      console.log("duration ms", durationMs);
+
       timerProgress.value = withTiming(
         height,
         {
-          duration: remainingTime,
+          duration: durationMs,
           easing: Easing.linear,
         },
         (finished) => {
@@ -140,33 +143,30 @@ export default function Page() {
         clearInterval(animationRef.current);
         animationRef.current = undefined;
         const now = Date.now();
-        remainingTimeRef.current = Math.max(
-          0,
-          (endTimeRef.current - now) / 1000
-        );
+        remainingTimeRef.current = Math.max(0, endTimeRef.current - now); // Store in milliseconds
+
+        console.log("remaining Time : ", remainingTimeRef.current);
 
         // Freeze animation at current position
-        timerProgress.value = timerProgress.value;
+        timerProgress.value = withTiming(timerProgress.value, { duration: 0 });
+        console.log("timer Progress : ", timerProgress.value);
         setIsPaused(true);
       }
     }
-  }, [isPaused, displayValue]);
+  }, [isPaused, height]);
 
-  // Replace startTimer with this simplified version
   const startNewTimer = useCallback(() => {
-    // Reset state for new timer
     if (animationRef.current) clearInterval(animationRef.current);
 
     buttonOpacity.value = withTiming(0, { duration: 300 });
     buttonTranslateY.value = withTiming(200, { duration: 300 });
     textOpacity.value = withTiming(1);
 
-    // Initialize new timer
-    remainingTimeRef.current = duration;
+    // Initialize with milliseconds
+    remainingTimeRef.current = duration * 1000;
     const startTime = Date.now();
     endTimeRef.current = startTime + duration * 1000;
 
-    // Initial animation sequence
     timerProgress.value = withSequence(
       withTiming(0, { duration: 300 }),
       withTiming(
@@ -181,7 +181,6 @@ export default function Page() {
       )
     );
 
-    // Start interval
     animationRef.current = setInterval(() => {
       const now = Date.now();
       const remaining = Math.max(
@@ -219,8 +218,9 @@ export default function Page() {
     },
     onMomentumEnd: (event) => {
       const index = Math.round(event.contentOffset.x / ITEM_SIZE);
-      runOnJS(setDuration)(timers[index] * 60);
-      remainingTimeRef.current = timers[index] * 60;
+      const newDuration = timers[index] * 60;
+      runOnJS(setDuration)(newDuration);
+      remainingTimeRef.current = newDuration * 1000; // Store as ms
     },
   });
 
@@ -230,17 +230,25 @@ export default function Page() {
         <StatusBar hidden />
 
         <TapGestureHandler
+          ref={doubleTapRef}
+          numberOfTaps={2}
           onHandlerStateChange={({ nativeEvent }) => {
-            if (nativeEvent.state === State.ACTIVE) runOnJS(toggleTimer)();
+            if (nativeEvent.state === State.ACTIVE) {
+              console.log("double Tap!");
+              runOnJS(resetTimer)();
+            }
           }}
         >
           <TapGestureHandler
-            ref={doubleTapRef}
+            ref={singleTapRef}
+            numberOfTaps={1}
+            waitFor={doubleTapRef} // Correct dependency
             onHandlerStateChange={({ nativeEvent }) => {
-              if (nativeEvent.state === State.ACTIVE) runOnJS(resetTimer)();
+              if (nativeEvent.state === State.ACTIVE) {
+                console.log("single Tap!");
+                runOnJS(toggleTimer)();
+              }
             }}
-            waitFor={doubleTapRef}
-            numberOfTaps={2}
           >
             <Animated.View
               style={[
@@ -270,13 +278,10 @@ export default function Page() {
           style={{ top: height / 3 }}
         >
           <Animated.View
+            className="absolute justify-center items-center self-center"
             style={[
               {
                 width: ITEM_SIZE * 2,
-                position: "absolute",
-                justifyContent: "center",
-                alignItems: "center",
-                alignSelf: "center",
               },
               textInputStyle,
             ]}
