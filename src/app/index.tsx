@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import { StatusBar } from "expo-status-bar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   View,
@@ -8,7 +9,6 @@ import {
   Dimensions,
   Vibration,
   StyleSheet,
-  Text,
 } from "react-native";
 
 import {
@@ -39,11 +39,12 @@ const colors = {
 };
 
 // Corrected timers array (1-10 minutes, then 15-60 in 5-minute increments)
-const timers = [...Array(15).keys()].map((i) => (i < 10 ? i + 1 : (i - 7) * 5));
+const timers = [...Array(20).keys()].map((i) => (i < 10 ? i + 1 : (i - 8) * 5));
 const ITEM_SIZE = width * 0.38;
 const ITEM_SPACING = (width - ITEM_SIZE) / 2;
 
 export default function Page() {
+  const insets = useSafeAreaInsets();
   const [duration, setDuration] = useState(timers[0] * 60);
   const [displayValue, setDisplayValue] = useState(() =>
     formatTime(timers[0] * 60)
@@ -59,7 +60,7 @@ export default function Page() {
 
   // Reanimated values
   const scrollX = useSharedValue(0);
-  const timerProgress = useSharedValue(height);
+  const timerProgress = useSharedValue(height + insets.bottom);
   const buttonOpacity = useSharedValue(1);
   const buttonTranslateY = useSharedValue(0);
   const textOpacity = useSharedValue(0);
@@ -85,8 +86,9 @@ export default function Page() {
 
   const resetTimer = () => {
     if (animationRef.current) clearInterval(animationRef.current);
+    Vibration.vibrate();
     animationRef.current = undefined;
-    timerProgress.value = withTiming(height, { duration: 300 });
+    timerProgress.value = withTiming(height + insets.bottom, { duration: 300 });
     buttonOpacity.value = withTiming(1, { duration: 300 });
     buttonTranslateY.value = withTiming(0, { duration: 300 });
     textOpacity.value = withTiming(0);
@@ -106,8 +108,7 @@ export default function Page() {
       const currentProgress = timerProgress.value;
       const progressRatio = currentProgress / height;
       const durationMs = remainingTimeRef.current * (1 - progressRatio);
-      console.log("duration ms", durationMs);
-
+      
       timerProgress.value = withTiming(
         height,
         {
@@ -145,11 +146,8 @@ export default function Page() {
         const now = Date.now();
         remainingTimeRef.current = Math.max(0, endTimeRef.current - now); // Store in milliseconds
 
-        console.log("remaining Time : ", remainingTimeRef.current);
-
         // Freeze animation at current position
         timerProgress.value = withTiming(timerProgress.value, { duration: 0 });
-        console.log("timer Progress : ", timerProgress.value);
         setIsPaused(true);
       }
     }
@@ -233,10 +231,7 @@ export default function Page() {
           ref={doubleTapRef}
           numberOfTaps={2}
           onHandlerStateChange={({ nativeEvent }) => {
-            if (nativeEvent.state === State.ACTIVE) {
-              console.log("double Tap!");
-              runOnJS(resetTimer)();
-            }
+            if (nativeEvent.state === State.ACTIVE) runOnJS(resetTimer)();
           }}
         >
           <TapGestureHandler
@@ -244,16 +239,15 @@ export default function Page() {
             numberOfTaps={1}
             waitFor={doubleTapRef} // Correct dependency
             onHandlerStateChange={({ nativeEvent }) => {
-              if (nativeEvent.state === State.ACTIVE) {
-                console.log("single Tap!");
-                runOnJS(toggleTimer)();
-              }
+              if (nativeEvent.state === State.ACTIVE) runOnJS(toggleTimer)();
             }}
           >
             <Animated.View
               style={[
                 StyleSheet.absoluteFillObject,
-                { backgroundColor: colors.primary },
+                {
+                  backgroundColor: colors.primary,
+                },
                 timerStyle,
               ]}
             />
