@@ -39,7 +39,7 @@ const colors = {
 };
 
 // Corrected timers array (1-10 minutes, then 15-60 in 5-minute increments)
-const timers = [...Array(20).keys()].map((i) => (i < 10 ? i + 1 : (i - 8) * 5));
+const timers = [...Array(20).keys()].map((i) => (i < 10 ? i + 1 : (i - 7) * 5));
 const ITEM_SIZE = width * 0.38;
 const ITEM_SPACING = (width - ITEM_SIZE) / 2;
 
@@ -53,7 +53,7 @@ export default function Page() {
 
   // Refs
   const animationRef = useRef<NodeJS.Timeout>();
-  const singleTapRef = useRef(); // <-- New ref for single tap
+  const singleTapRef = useRef();
   const doubleTapRef = useRef();
   const endTimeRef = useRef(0);
   const remainingTimeRef = useRef(duration);
@@ -110,7 +110,7 @@ export default function Page() {
       const durationMs = remainingTimeRef.current * (1 - progressRatio);
       
       timerProgress.value = withTiming(
-        height,
+        height  + insets.bottom,
         {
           duration: durationMs,
           easing: Easing.linear,
@@ -147,7 +147,7 @@ export default function Page() {
         remainingTimeRef.current = Math.max(0, endTimeRef.current - now); // Store in milliseconds
 
         // Freeze animation at current position
-        timerProgress.value = withTiming(timerProgress.value, { duration: 0 });
+        timerProgress.value = withTiming(timerProgress.value , { duration: 0 });
         setIsPaused(true);
       }
     }
